@@ -1,7 +1,7 @@
 // Function to fetch live Arduino data from the Flask backend
 function fetchLiveData() {
     // Flask handles the route seamlessly on the same domain
-    fetch('/api/dynamic') 
+    fetch('/api/dynamic.json') 
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
