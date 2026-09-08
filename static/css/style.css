@@ -1,1 +1,13 @@
-
+table {
+    border-collapse:collapse;
+}
+h1 {
+    text-align:center;
+}
+h2 {
+    text-align: center;
+    color:gray;
+}
+a:hover {
+    color:#ff4f4f;
+}
