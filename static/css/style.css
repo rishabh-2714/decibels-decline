@@ -11,3 +11,14 @@ h2 {
 a:hover {
     color:#ff4f4f;
 }
+main>div {
+    display: flex;
+}
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background-image: url(assets/navbar.png);
+}
