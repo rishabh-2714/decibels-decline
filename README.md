@@ -24,6 +24,7 @@ A school tech expo project that we use to help teachers' nerves by monitoring no
   git clone https://github.com
   cd decibels-decline
 ```
+2. Use the code as follows:
 ## Usage
 
 - In Arduino IDE, download decibels.ino to your ESP32
