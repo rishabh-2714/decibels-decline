@@ -34,4 +34,4 @@ A school tech expo project that we use to help teachers' nerves by monitoring no
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+This project is licensed under a Classroom Use License - see the [LICENSE.md](LICENSE.md) file for details.
