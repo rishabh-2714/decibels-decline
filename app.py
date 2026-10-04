@@ -22,13 +22,12 @@ app = Flask(__name__)
 # Define absolute paths for PythonAnywhere hosting environments
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 JSON_PATH = os.path.join(BASE_DIR, 'dynamic.json')
-STATIC_DIR = os.path.join(BASE_DIR, 'static')
-TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
+
 def read_json():
     # Safely read raw contents of the JSON file
-app = Flask(__name__, 
-            static_folder=STATIC_DIR, 
-            template_folder=TEMPLATES_DIR)
+    if not os.path.exists(JSON_PATH):
+        with open(JSON_PATH, 'w') as f:
+            json.dump({}, f)
     try:
         with open(JSON_PATH, 'r') as f:
             return json.load(f)
