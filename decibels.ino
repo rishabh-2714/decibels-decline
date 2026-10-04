@@ -2,7 +2,7 @@
 
 void setup() {
   //pinMode for a noise sensor, a large red light and a buzzer. Figure out which models.
-  serial.begin(/*9600 if Arduino, 112500 is ESP32*/);
+  serial.begin(112500);
 }
 
 void loop() {
