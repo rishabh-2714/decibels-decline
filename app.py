@@ -26,9 +26,9 @@ STATIC_DIR = os.path.join(BASE_DIR, 'static')
 TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
 def read_json():
     # Safely read raw contents of the JSON file
-    if not os.path.exists(JSON_PATH):
-        with open(JSON_PATH, 'w') as f:
-            json.dump({}, f)
+app = Flask(__name__, 
+            static_folder=STATIC_DIR, 
+            template_folder=TEMPLATES_DIR)
     try:
         with open(JSON_PATH, 'r') as f:
             return json.load(f)
