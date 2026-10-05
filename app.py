@@ -22,18 +22,31 @@ app = Flask(__name__)
 # Define absolute paths for PythonAnywhere hosting environments
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 JSON_PATH = os.path.join(BASE_DIR, 'dynamic.json')
-
+TEMP_DIR=os.path.join(BASE_DIR,"templates")
+STATIC_DIR=os.path.join(BASE_DIR,"static")
+STATIC_JSON_PATH=os.path.join(STATIC_DIR,"json","static.json")
+app = Flask(_name_,template_folder=TEMPLATE_DIR,static_folder=STATIC_DIR)
 def read_json():
-    # Safely read raw contents of the JSON file
     if not os.path.exists(JSON_PATH):
-        with open(JSON_PATH, 'w') as f:
-            json.dump({}, f)
-    try:
-        with open(JSON_PATH, 'r') as f:
-            return json.load(f)
+        try:
+            with open(JSON_PATH, "w", encoding="utf-8") as file:
+                json.dump({}, file, indent=4)
+        except OSError as error:
+            print("Error creating dynamic.json:", error)
+            return {}
+
+	try:
+            with open(JSON_PATH, "r", encoding="utf-8") as file:
+            data = json.load(file)
+            return data
+
     except json.JSONDecodeError:
+        print("Error: dynamic.json contains invalid JSON.")
         return {}
 
+    except OSError as error:
+        print("Error reading dynamic.json:", error)
+        return {}
 def write_json(data):
     # Safely overwrite the JSON file with new structural payloads
     with open(JSON_PATH, 'w') as f:
