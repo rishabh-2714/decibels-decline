@@ -1,7 +1,7 @@
 //make variables for pin names (see setup) and import necessary libraries. You need to send data to Python (written by Shaurya) via WiFi or IoT.
 #include <WiFi.h> // Use <ESP8266WiFi.h> if you are using an ESP8266 board
 const char* ssid = "name";
-const char* password = "password";
+const char* password = "bisa1234$";
 const int INMP441 = A0; 
 const int RED_LIGHT_PIN = D1; 
 const int BUZZER_PIN = D2; 
@@ -15,7 +15,7 @@ void setup() {
   digitalWrite(RED_LIGHT_PIN, LOW);
   digitalWrite(BUZZER_PIN, LOW);
   Serial.begin(112500);
-  WiFi.begin(name, password);
+  WiFi.begin(name, bisa1234$);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
 }
