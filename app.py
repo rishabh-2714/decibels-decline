@@ -71,13 +71,38 @@ def index():
 def get_data():
     data = read_json()
     return jsonify(data)
-@app.route('/api/data/update', methods=['POST'])
-def update_data():
-    # Endpoint for any WiFi-enabled Arduino to send raw payloads
-    new_data = request.get_json()
-    if not new_data:
-        return jsonify({"error": "Malformed or empty JSON payload"}), 400
-        
+@app.route("/api/data/update", methods=["POST"])
+def update_data():   
+    if not request.is_json:
+        return jsonify({
+            "error": "Request must contain JSON data"
+        }), 400
+
+    try:
+        new_data = request.get_json()
+
+    except Exception as error:
+        print("JSON error:", error)
+
+        return jsonify({
+            "error": "Malformed JSON payload"
+        }), 400
+
+    if new_data is None:
+        return jsonify({
+            "error": "Empty JSON payload"
+        }), 400
+
+    if write_json(new_data):
+
+        return jsonify({
+            "message": "Data captured successfully",
+            "data": new_data
+        }), 200
+
+    return jsonify({
+        "error": "Unable to write data to dynamic.json"
+    }), 500
     write_json(new_data)
     return jsonify({"message": "Data captured successfully"})
 
