@@ -103,8 +103,11 @@ def update_data():
     return jsonify({
         "error": "Unable to write data to dynamic.json"
     }), 500
-    write_json(new_data)
-    return jsonify({"message": "Data captured successfully"})
 
+    @app.route("/health", methods=["GET"])
+def health():
+    return jsonify({
+        "status": "running"
+    })
 if __name__ == '__main__':
     app.run(debug=True)
