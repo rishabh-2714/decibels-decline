@@ -48,14 +48,24 @@ def read_json():
         print("Error reading dynamic.json:", error)
         return {}
 def write_json(data):
-    # Safely overwrite the JSON file with new structural payloads
-    with open(JSON_PATH, 'w') as f:
-        json.dump(data, f, indent=4)
+    try:
+        with open(JSON_PATH, "w", encoding="utf-8") as file:
+            json.dump(
+                data,
+                file,
+                indent=4,
+                ensure_ascii=False
+            )
 
-@app.route('/')
+        return True
+
+    except OSError as error:
+        print("Error writing dynamic.json:", error)
+        return False
+@app.route("/")
 def index():
-    # Renders the base template shell
-    return render_template('index.html')
+
+    return render_template("index.html")
 
 @app.route('/api/data', methods=['GET'])
 def get_data():
