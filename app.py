@@ -67,11 +67,10 @@ def index():
 
     return render_template("index.html")
 
-@app.route('/api/data', methods=['GET'])
+@app.route("/api/data", methods=["GET"])
 def get_data():
-    # Endpoint for the frontend JS to pull the latest JSON data loop
-    return jsonify(read_json())
-
+    data = read_json()
+    return jsonify(data)
 @app.route('/api/data/update', methods=['POST'])
 def update_data():
     # Endpoint for any WiFi-enabled Arduino to send raw payloads
