@@ -21,7 +21,7 @@ A school tech expo project that we use to help teachers' nerves by monitoring no
 
 1. Clone the repository. On GitHub app/site, just clone. On terminal, 
 ```bash
-  git clone https://github.com
+  git clone https://github.com/rishabh-2714/decibels-decline
   cd decibels-decline
 ```
 2. Use the code as follows:
