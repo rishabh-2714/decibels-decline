@@ -18,6 +18,7 @@ void setup() {
   WiFi.begin(name, bisa1234$);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
+  }
 }
 
 void loop() {
