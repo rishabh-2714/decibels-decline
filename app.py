@@ -20,11 +20,11 @@ from flask import Flask, render_template, jsonify
 # Define absolute paths for PythonAnywhere hosting environments
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 JSON_PATH = os.path.join(BASE_DIR, 'dynamic.json')
-TEMP_DIR=os.path.join(BASE_DIR,"templates")
+TEMPLATE_DIR=os.path.join(BASE_DIR,"templates")
 STATIC_DIR=os.path.join(BASE_DIR,"static")
 STATIC_JSON_PATH=os.path.join(STATIC_DIR,"json","static.json")
 ESP32_URL = "http://192.168.4.1"
-app = Flask(_name_,template_folder=TEMPLATE_DIR,static_folder=STATIC_DIR)
+app = Flask(__name__,template_folder=TEMPLATE_DIR,static_folder=STATIC_DIR)
 def read_json():
     if not os.path.exists(JSON_PATH):
         try:
