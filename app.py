@@ -15,7 +15,7 @@ Mapping:
 """
 import os
 import requests
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, jsonify
 
 app = Flask(__name__)
 
