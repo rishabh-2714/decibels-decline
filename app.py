@@ -17,8 +17,6 @@ import os
 import requests
 from flask import Flask, render_template, jsonify
 
-app = Flask(__name__)
-
 # Define absolute paths for PythonAnywhere hosting environments
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 JSON_PATH = os.path.join(BASE_DIR, 'dynamic.json')
