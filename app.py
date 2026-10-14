@@ -25,69 +25,42 @@ STATIC_DIR=os.path.join(BASE_DIR,"static")
 STATIC_JSON_PATH=os.path.join(STATIC_DIR,"json","static.json")
 ESP32_URL = "http://192.168.4.1"
 app = Flask(__name__,template_folder=TEMPLATE_DIR,static_folder=STATIC_DIR)
-"""
 @app.route("/")
 def index():
 
     return render_template("index.html")
-
 @app.route("/api/data", methods=["GET"])
 def get_data():
-    data = read_json()
-    return jsonify(data)
-@app.route("/api/data/update", methods=["POST"])
-def update_data():   
-    if not request.is_json:
-        return jsonify({
-            "error": "Request must contain JSON data"
-        }), 400
-
     try:
-        new_data = request.get_json()
+        response = requests.get(
+            ESP32_URL + "/api/data",
+            timeout=3
+        )
 
-    except Exception as error:
-        print("JSON error:", error)
-
-        return jsonify({
-            "error": "Malformed JSON payload"
-        }), 400
-
-    if new_data is None:
-        return jsonify({
-            "error": "Empty JSON payload"
-        }), 400
-
-    if write_json(new_data):
+        response.raise_for_status()
+        data = response.json()
 
         return jsonify({
-            "message": "Data captured successfully",
-            "data": new_data
-        }), 200
+            "sensor_value": int(data["sensor_value"]),
+            "decibels": float(data["decibels"])
+        })
 
-    return jsonify({
-        "error": "Unable to write data to dynamic.json"
-    }), 500
+    except requests.RequestException as error:
+        app.logger.error("ESP32 connection error: %s", error)
 
-    @app.route("/health", methods=["GET"])
+        return jsonify({
+            "error": "ESP32 is not reachable"
+        }), 503
+
+    except (ValueError, KeyError, TypeError):
+        return jsonify({
+            "error": "Invalid sensor data received"
+        }), 502
+
+@app.route("/health", methods=["GET"])
 def health():
     return jsonify({
-        "status": "running"
+        "status": "running",
+        "esp32": ESP32_URL
     })
-	@app.errorhandler(404)
-def page_not_found(error):
-    return jsonify({
-        "error": "Page not found"
-    }), 404
-	@app.errorhandler(500)
-def internal_server_error(error):
-    return jsonify({
-        "error": "Internal server error"
-    }), 500
-if __name__ == "__main__":
 
-    app.run(
-        host="0.0.0.0",
-        port=5000,
-        debug=True
-    )
-	"""
