@@ -25,42 +25,7 @@ STATIC_DIR=os.path.join(BASE_DIR,"static")
 STATIC_JSON_PATH=os.path.join(STATIC_DIR,"json","static.json")
 ESP32_URL = "http://192.168.4.1"
 app = Flask(__name__,template_folder=TEMPLATE_DIR,static_folder=STATIC_DIR)
-def read_json():
-    if not os.path.exists(JSON_PATH):
-        try:
-            with open(JSON_PATH, "w", encoding="utf-8") as file:
-                json.dump({}, file, indent=4)
-        except OSError as error:
-            print("Error creating dynamic.json:", error)
-            return {}
-
-	try:
-            with open(JSON_PATH, "r", encoding="utf-8") as file:
-            data = json.load(file)
-            return data
-
-    except json.JSONDecodeError:
-        print("Error: dynamic.json contains invalid JSON.")
-        return {}
-
-    except OSError as error:
-        print("Error reading dynamic.json:", error)
-        return {}
-def write_json(data):
-    try:
-        with open(JSON_PATH, "w", encoding="utf-8") as file:
-            json.dump(
-                data,
-                file,
-                indent=4,
-                ensure_ascii=False
-            )
-
-        return True
-
-    except OSError as error:
-        print("Error writing dynamic.json:", error)
-        return False
+"""
 @app.route("/")
 def index():
 
@@ -125,3 +90,4 @@ if __name__ == "__main__":
         port=5000,
         debug=True
     )
+	"""
