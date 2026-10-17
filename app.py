@@ -1,34 +1,23 @@
-# Shaurya, please add Flask here. For mapping, here is the repository structure. Please write full paths so that we can use PythonAnywhere as a host.
-"""
-Mapping:
-/root
-│
-│——/static
-│   │
-│   │——/json/static.json
-│   │——/css/style.css
-│   │——/js/main.js
-│——/templates/index.html
-│——app.py #this file
-│——dynamic.json
-│——decibels-mihir.ino
-"""
 import os
 import requests
 from flask import Flask, render_template, jsonify
 
-# Define absolute paths for PythonAnywhere hosting environments
+# Define absolute paths for local environment
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 JSON_PATH = os.path.join(BASE_DIR, 'dynamic.json')
-TEMPLATE_DIR=os.path.join(BASE_DIR,"templates")
-STATIC_DIR=os.path.join(BASE_DIR,"static")
-STATIC_JSON_PATH=os.path.join(STATIC_DIR,"json","static.json")
+TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+STATIC_JSON_PATH = os.path.join(STATIC_DIR, "json", "main.json")
+
+# ESP32 Access Point IP address
 ESP32_URL = "http://192.168.4.1"
-app = Flask(__name__,template_folder=TEMPLATE_DIR,static_folder=STATIC_DIR)
+
+app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
+
 @app.route("/")
 def index():
-
     return render_template("index.html")
+
 @app.route("/api/data", methods=["GET"])
 def get_data():
     try:
@@ -36,7 +25,6 @@ def get_data():
             ESP32_URL + "/api/data",
             timeout=3
         )
-
         response.raise_for_status()
         data = response.json()
 
@@ -47,7 +35,6 @@ def get_data():
 
     except requests.RequestException as error:
         app.logger.error("ESP32 connection error: %s", error)
-
         return jsonify({
             "error": "ESP32 is not reachable"
         }), 503
@@ -74,5 +61,5 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=5000,
-        debug=False
+        debug=True
     )
