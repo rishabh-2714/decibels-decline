@@ -1,7 +1,8 @@
 import os
 import requests
+import json
 from flask import Flask, render_template, jsonify
-
+from datetime import datetime
 # Define absolute paths for local environment
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 JSON_PATH = os.path.join(BASE_DIR, 'dynamic.json')
@@ -14,6 +15,66 @@ ESP32_URL = "http://192.168.4.1"
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
 
+def read_json():
+    if not os.path.exists(JSON_PATH):
+        return {
+            "sensor_value": 0,
+            "decibels": 0.0,
+            "update_count": 0
+        }
+
+    try:
+        with open(JSON_PATH, "r", encoding="utf-8") as file:
+            data = json.load(file)
+
+        if not isinstance(data, dict):
+            raise ValueError("Invalid JSON structure")
+
+        return data
+
+    except (OSError, ValueError):
+        app.logger.warning("Could not read dynamic.json")
+        return {
+            "sensor_value": 0,
+            "decibels": 0.0,
+            "update_count": 0
+        }
+
+def write_json(data):
+    try:
+        previous_data = read_json()
+        count = int(previous_data.get("update_count", 0))
+
+        # Update only if the sensor readings have changed
+        readings_changed = (
+            data["sensor_value"] != previous_data.get("sensor_value")
+            or round(data["decibels"], 1)
+            != round(float(previous_data.get("decibels", 0)), 1)
+        )
+
+        if readings_changed:
+            data["update_count"] = count + 1
+            data["updated_at"] = datetime.now().isoformat(
+                timespec="seconds"
+            )
+
+            temp_path = JSON_PATH + ".tmp"
+
+            with open(temp_path, "w", encoding="utf-8") as file:
+                json.dump(data, file, indent=4)
+
+            # Replace the old file after a successful write
+            os.replace(temp_path, JSON_PATH)
+
+        else:
+            data["update_count"] = count
+
+        return True
+
+    except (OSError, ValueError, TypeError) as error:
+        app.logger.error("Error updating dynamic.json: %s", error)
+        return False
+        
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -26,11 +87,27 @@ def get_data():
             timeout=3
         )
         response.raise_for_status()
-        data = response.json()
+
+    esp_data = response.json()
+
+        data = {
+            "sensor_value": int(esp_data["sensor_value"]),
+            "decibels": float(esp_data["decibels"])
+        }
+
+        if not write_json(data):
+            return jsonify({
+                "error": "Unable to update dynamic.json"
+            }), 500
+
+        
+        saved_data = read_json()
 
         return jsonify({
-            "sensor_value": int(data["sensor_value"]),
-            "decibels": float(data["decibels"])
+            "sensor_value": data["sensor_value"],
+            "decibels": data["decibels"],
+            "update_count": saved_data.get("update_count", 0),
+            "updated_at": saved_data.get("updated_at")
         })
 
     except requests.RequestException as error:
