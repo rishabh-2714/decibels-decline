@@ -96,18 +96,17 @@ Using normal pull-up setups on these buttons guarantees the ESP8266 boots cleanl
 into normal program execution mode upon receiving power. 
 
 ### [SECTION 4] EMERGENCY ALERT ELEMENTS
-
 ================================================================================
-These pins drive warning outputs outward when the room decibel level crosses
-the pre-configured threshold index 't' (set to 60dB). 
+These pins drive warning outputs outward when the room decibel level crosses 
+the pre-configured threshold index 't' (set to 60dB).
 
-PERIPHERAL WARNING UNITESP8266 PHYSICAL PIN LABELACTIVE DRIVING OUTPUT
-**Large Red Alert Lamp**
-RX (GPIO3)HIGH (+3.3V) = ON
-**Acoustic Piezo Buzzer**
-D9 (GPIO7 / SD2)*HIGH (+3.3V) = ON
+| PERIPHERAL WARNING UNIT | ESP8266 PHYSICAL PIN LABEL | ACTIVE DRIVING OUTPUT  |
+| :---------------------- | :------------------------- | :--------------------- |
+| Large Red Alert Lamp    | RX (GPIO3)                 | HIGH (+3.3V) = ON      |
+| Acoustic Piezo Buzzer   | D9 (GPIO7 / SD2)*          | HIGH (+3.3V) = ON      |
 
-### *⚠️ CAUTION:* Using RX/TX pins for system peripherals means serial debugging data
-should be disabled (Serial.end()) during active processing loops to prevent interference.
-
+*⚠️ CAUTION:* Using RX/TX pins for system peripherals means serial debugging data 
+should be disabled (`Serial.end()`) during active processing loops to prevent interference.
+--------------------------------------------------------------------------------
 EOF - END OF FILE
+
