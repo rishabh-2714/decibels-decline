@@ -4,7 +4,7 @@
 
 ### [SECTION 1] INMP441 MEMS DIGITAL MICROPHONE PIPELINE
 
-================================================================================
+---
 The INMP441 relies on a high-speed hardware I2S engine. These pin connections
 must be wired exactly as specified below. Do not swap or relocate them. 
 
@@ -29,7 +29,7 @@ ESP8266 to successfully boot into its normal execution state. 
 
 ### [SECTION 2] SEVEN-SEGMENT DISPLAYS (SSDs) SINGLE REGISTER MULTIPLEX MATRIX
 
-================================================================================
+---
 To run two individual independent displays while conserving IO ports, both modules
 share a single 74HC595 Shift Register via a parallel segment bus. Connect Segment A
 of Display 1 to Segment A of Display 2, and trace that junction to the QA pin of
@@ -80,7 +80,7 @@ TX (GPIO1)Active LOW/HIGH Ground Gate
 
 ### [SECTION 3] CONTROL INTERRUPT PUSH BUTTONS
 
-================================================================================
+---
 Wire one terminal of the push switch directly to the pin below. Tie the
 opposite terminal directly to any common GND plane. Internal software
 pull-up configuration handles noise filtration. 
@@ -96,17 +96,16 @@ Using normal pull-up setups on these buttons guarantees the ESP8266 boots cleanl
 into normal program execution mode upon receiving power. 
 
 ### [SECTION 4] EMERGENCY ALERT ELEMENTS
-================================================================================
+---
 These pins drive warning outputs outward when the room decibel level crosses 
 the pre-configured threshold index 't' (set to 60dB).
 
 | PERIPHERAL WARNING UNIT | ESP8266 PHYSICAL PIN LABEL | ACTIVE DRIVING OUTPUT  |
 | :---------------------- | :------------------------- | :--------------------- |
-| Large Red Alert Lamp    | RX (GPIO3)                 | HIGH (+3.3V) = ON      |
+| Status Alert LED        | RX (GPIO3)                 | HIGH (+3.3V) = ON      |
 | Acoustic Piezo Buzzer   | D9 (GPIO7 / SD2)*          | HIGH (+3.3V) = ON      |
 
-*⚠️ CAUTION:* Using RX/TX pins for system peripherals means serial debugging data 
-should be disabled (`Serial.end()`) during active processing loops to prevent interference.
+*⚠️ CAUTION:* Remember that since this LED is wired to the RX pin, it might flicker 
+very faintly for a split second when the ESP8266 first powers up or when you flash 
+new code. Once `Serial.end()` runs in your setup, you have complete digital control.
 --------------------------------------------------------------------------------
-EOF - END OF FILE
-
