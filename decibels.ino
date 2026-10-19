@@ -24,7 +24,7 @@ const int RED_LIGHT_PIN = RX; // Decibel trigger light (GPIO3)
 const int BUZZER_PIN    = D9; // Decibel trigger piezo (GPIO7 / SD2) 
 
 // Threshold configuration (in Decibels)
-const int t = 60; 
+const int t = 75; 
 
 // Array containing your exact JSON keys
 const int TOTAL_KEYS = 18;
