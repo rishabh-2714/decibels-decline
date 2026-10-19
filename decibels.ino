@@ -1,30 +1,31 @@
 #include <ESP8266WiFi.h>
 #include <I2S.h>
-#include <math.h> 
+#include <math.h> 
 
 // WiFi Configuration
 const char* ssid = "name";
-const char* password = "bisa1234$"; 
+const char* password = "bisa1234$"; 
 
 // 74HC595 Shift Register Bus Pins
 const int DATA_PIN  = D2; // Pin 14 (DS)
 const int CLOCK_PIN = D7; // Pin 11 (SH_CP)
-const int LATCH_PIN = D1; // Pin 12 (ST_CP) 
+const int LATCH_PIN = D1; // Pin 12 (ST_CP) 
 
 // Digits/SSDs Control Pins (Common Cathode Ground Gates)
 const int DIGIT_1_PIN = D0; // Powers left display (GPIO16)
-const int DIGIT_2_PIN = TX; // Powers right display (GPIO1) 
+const int DIGIT_2_PIN = TX; // Powers right display (GPIO1) 
 
 // Control Interrupt Push Buttons
 const int BTN_NEXT_PIN  = D3; // Button 1: Cycles keys (GPIO0)
-const int BTN_SEL_PIN   = D4; // Button 2: Selects key (GPIO2) 
+const int BTN_SEL_PIN   = D4; // Button 2: Selects key (GPIO2) 
 
 // Emergency Alert Elements
 const int RED_LIGHT_PIN = RX; // Decibel trigger light (GPIO3)
-const int BUZZER_PIN    = D9; // Decibel trigger piezo (GPIO7 / SD2) 
+// Note: Buzzer is now controlled via QH (MSB) on the 74HC595 shift register
+bool buzzerActive = false;    // Global flag for QH buzzer state
 
 // Threshold configuration (in Decibels)
-const int t = 75; 
+const int t = 75; 
 
 // Array containing your exact JSON keys
 const int TOTAL_KEYS = 18;
@@ -33,11 +34,11 @@ const char* jsonKeys[TOTAL_KEYS] = {
 "8B", "8A", "8g", "8s", "8h", "9", "10", "11", "12"
 };
 int currentKeyIndex = 0;
-bool selectionFinalized = false; 
+bool selectionFinalized = false; 
 
 // Audio Sample Constraints
 const int SAMPLE_WINDOW = 50;
-const float REFERENCE_AMPLITUDE = 1.0; 
+const float REFERENCE_AMPLITUDE = 1.0; 
 
 // Segment Lookup Array: Mapping ASCII characters to custom segment bits
 // Segment order matching QA->QH map: 0b[DP][G][F][E][D][C][B][A] (1 = Segment ON)
@@ -65,19 +66,27 @@ case 's': return 0b01101101;
 case 'y': return 0b01101110;
 default:  return 0b00000000; // Blank Space
 }
-} 
+} 
 
 // Low-level function to stream out data into the 74HC595 shift register
 void writeSegments(uint8_t mask) {
 digitalWrite(LATCH_PIN, LOW);
+
+// Automatically inject buzzer state into QH (MSB - bit 7)
+if (buzzerActive) {
+    mask |= 0b10000000; // Set QH HIGH
+} else {
+    mask &= 0b01111111; // Set QH LOW
+}
+
 shiftOut(DATA_PIN, CLOCK_PIN, MSBFIRST, mask);
 digitalWrite(LATCH_PIN, HIGH);
-} 
+} 
 
 // Multiplexes both displays back-and-forth once
 void updateDisplay() {
 const char* key = jsonKeys[currentKeyIndex];
-char leftChar, rightChar; 
+char leftChar, rightChar; 
 
 // Handle single digit alignment (like "9" -> " 9")
 if (key == '\0') {
@@ -86,55 +95,54 @@ rightChar = key;
 } else {
 leftChar = key;
 rightChar = key;
-} 
+} 
 
 // Flash Left Display
 writeSegments(getSegmentByte(leftChar));
 digitalWrite(DIGIT_1_PIN, LOW);  // Turn on Left SSD
 delay(4);                        // Small window for persistence of vision
-digitalWrite(DIGIT_1_PIN, HIGH); // Turn off Left SSD 
+digitalWrite(DIGIT_1_PIN, HIGH); // Turn off Left SSD 
 
 // Flash Right Display
 writeSegments(getSegmentByte(rightChar));
 digitalWrite(DIGIT_2_PIN, LOW);  // Turn on Right SSD
 delay(4);                        // Small window for persistence of vision
 digitalWrite(DIGIT_2_PIN, HIGH); // Turn off Right SSD
-} 
+} 
 
 void setup() {
 // Serial initialization (Used during boot config mode)
-Serial.begin(115200); 
+Serial.begin(115200); 
 
 // Configure shift register logic pins
 pinMode(DATA_PIN, OUTPUT);
 pinMode(CLOCK_PIN, OUTPUT);
-pinMode(LATCH_PIN, OUTPUT); 
+pinMode(LATCH_PIN, OUTPUT); 
 
 // Set up digit switching control lines
 pinMode(DIGIT_1_PIN, OUTPUT);
 pinMode(DIGIT_2_PIN, OUTPUT);
 digitalWrite(DIGIT_1_PIN, HIGH); // Off state (Common Cathode)
-digitalWrite(DIGIT_2_PIN, HIGH); // Off state (Common Cathode) 
+digitalWrite(DIGIT_2_PIN, HIGH); // Off state (Common Cathode) 
 
 // Set up buttons with internal pull-ups
 pinMode(BTN_NEXT_PIN, INPUT_PULLUP);
-pinMode(BTN_SEL_PIN, INPUT_PULLUP); 
+pinMode(BTN_SEL_PIN, INPUT_PULLUP); 
 
 // Set up sound action hardware
 pinMode(RED_LIGHT_PIN, OUTPUT);
-pinMode(BUZZER_PIN, OUTPUT);
 digitalWrite(RED_LIGHT_PIN, LOW);
-digitalWrite(BUZZER_PIN, LOW); 
+buzzerActive = false; 
 
 // Connect to the WiFi network
 WiFi.begin(ssid, password);
 while (WiFi.status() != WL_CONNECTED) {
 updateDisplay(); // Keep driving display loop while waiting for WiFi
-} 
+} 
 
 // INTERLOCK CHOICE LOOP: Holds device until selection is locked in
 while (!selectionFinalized) {
-updateDisplay(); // Keeps displaying the active key choice continuously 
+updateDisplay(); // Keeps displaying the active key choice continuously 
 
 // Read Next Button
 if (digitalRead(BTN_NEXT_PIN) == LOW) {
@@ -153,22 +161,21 @@ writeSegments(0); // Clear shift register outputs completely
 while(digitalRead(BTN_SEL_PIN) == LOW) { yield(); }
 }
 yield();
-
-} 
+} 
 
 // Shut down standard serial lines to clear pins TX/RX for active displays and lights
-Serial.end(); 
+Serial.end(); 
 
 // --- START AUDIO SENSING SUB-ROUTINE ---
 if (!I2S.begin(I2S_PHILIPS_MODE, 16000, 16)) {
 while (1);
 }
-} 
+} 
 
 void loop() {
 unsigned long startMillis = millis();
 long long sumSquares = 0;
-long sampleCount = 0; 
+long sampleCount = 0; 
 
 // Track sound input across the sample window frame
 while (millis() - startMillis < SAMPLE_WINDOW) {
@@ -176,45 +183,42 @@ if (I2S.available()) {
 int16_t sample = I2S.readSample();
 sumSquares += (long long)sample * sample;
 sampleCount++;
-} 
+} 
 
 // Continuously cycle displays inside sample window to prevent flickering
 updateDisplay();
-} 
+} 
 
 int vol = 0;
 if (sampleCount > 0) {
 double meanSquare = (double)sumSquares / sampleCount;
 double rms = sqrt(meanSquare);
-if (rms < 1) rms = 1; 
+if (rms < 1) rms = 1; 
 
 vol = (int)(20.0 * log10(rms / REFERENCE_AMPLITUDE));
-} 
+} 
 
 // Trigger safety warnings if decibel threshold is breached
 if (vol > t) {
-digitalWrite(RED_LIGHT_PIN, HIGH); 
-
-if (vol > 90) {
-// Soft-tone active rule: reduce duty cycle using PWM to lower buzzer intensity
-analogWrite(BUZZER_PIN, 45);
-} else {
-// Standard rule: full power output beep
-digitalWrite(BUZZER_PIN, HIGH);
-}
+digitalWrite(RED_LIGHT_PIN, HIGH); 
 
 // Maintain alert state while keeping screens visible
 unsigned long alertStart = millis();
 while (millis() - alertStart < 2000) {
+if (vol > 90) {
+// Software PWM toggle for lower intensity buzzer tone via QH
+buzzerActive = (millis() / 5) % 2;
+} else {
+// Standard rule: full power output beep via QH
+buzzerActive = true;
+}
 updateDisplay();
 }
 
 // Clear warning outputs completely
 digitalWrite(RED_LIGHT_PIN, LOW);
-digitalWrite(BUZZER_PIN, LOW);
-analogWrite(BUZZER_PIN, 0);
-
-} 
+buzzerActive = false;
+} 
 
 // Short recovery delay pacing loop
 unsigned long recoveryStart = millis();
