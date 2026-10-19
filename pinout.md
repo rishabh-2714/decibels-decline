@@ -1,79 +1,113 @@
-# PINOUT MANUAL & WIRING DIAGRAM
-## PROJECT: UNIFIED DECIEL-SENSING SYSTEM (ESP8266 + INMP441 + MULTIPLEXED SSDs)
---------------------------------------------------------------------------------
+### PINOUT MANUAL & WIRING DIAGRAM
+
+### PROJECT: UNIFIED DECIBEL-SENSING SYSTEM (ESP8266 + INMP441 + MULTIPLEXED SSD VIA 74HC595)
 
 ### [SECTION 1] INMP441 MEMS DIGITAL MICROPHONE PIPELINE
+
 ================================================================================
-The INMP441 relies on a high-speed hardware I2S engine. These pin connections 
-must be wired exactly as specified below. Do not swap or relocate them.
+The INMP441 relies on a high-speed hardware I2S engine. These pin connections
+must be wired exactly as specified below. Do not swap or relocate them. 
 
-| INMP441 MODULE PIN | ESP8266 PHYSICAL PIN LABEL | PURPOSE / BUS LINE          |
-| :----------------- | :------------------------- | :-------------------------- |
-| VDD                | 3V3                        | Power Input (+3.3V Only!)   |
-| GND                | GND                        | Common System Ground Reference|
-| L/R                | GND                        | Hardware Left Channel Select |
-| SCK                | D7                         | Hardware Bit Clock (BCLK)   |
-| WS                 | D5                         | Word Select / Clock (LRCK)  |
-| SD                 | D6                         | Serial Audio Data Out (DIN) |
+INMP441 MODULE PINESP8266 PHYSICAL PIN LABELPURPOSE / BUS LINE
+**VDD**
+3V3Power Input (+3.3V Only!)
+**GND**
+GNDCommon System Ground Reference
+**L/R**
+GNDHardware Left Channel Select
+**SCK**
+D5 (GPIO14)Hardware Bit Clock (BCLK)
+**WS**
+D8 (GPIO15)Word Select / Clock (LRCK)
+**SD**
+D6 (GPIO12)Serial Audio Data Out (DIN)
 
-*⚡ DANGER NOTE:* Never link the VDD terminal of the mic to the 5V / VIN pin. 
+*⚡ DANGER NOTE:* Never link the VDD terminal of the mic to the 5V / VIN pin.
 It will immediately fry the delicate internal silicon wafer of the sensor.
+*Note:* GPIO15 (D8) requires an external pull-down resistor to ground for the
+ESP8266 to successfully boot into its normal execution state. 
 
+### [SECTION 2] SEVEN-SEGMENT DISPLAYS (SSDs) SINGLE REGISTER MULTIPLEX MATRIX
 
-### [SECTION 2] SEVEN-SEGMENT DISPLAYS (SSDs) PARALLEL BUS & DIGIT LINES
 ================================================================================
-To run two individual independent displays without running out of IO ports, 
-both modules are wired in a shared parallel matrix bus. Connect Segment A of 
-Display 1 to Segment A of Display 2, and trace that junction to the D0 pin. 
-Repeat for all remaining segments.
+To run two individual independent displays while conserving IO ports, both modules
+share a single 74HC595 Shift Register via a parallel segment bus. Connect Segment A
+of Display 1 to Segment A of Display 2, and trace that junction to the QA pin of
+the 74HC595. Repeat for all remaining segments. 
 
-#### A. SHARED SEGMENT BUS DATA MAP
-| SEVEN-SEGMENT TERMINAL | ESP8266 PHYSICAL PIN LABEL | ARCHITECTURE ROLE     |
-| :--------------------- | :------------------------- | :--------------------- |
-| Segment A              | D0                         | Top Horizontal Bar     |
-| Segment B              | D8                         | Upper Right Vert Bar   |
-| Segment C              | RX                         | Lower Right Vert Bar   |
-| Segment D              | TX                         | Bottom Horizontal Bar  |
-| Segment E              | SD3                        | Lower Left Vert Bar    |
-| Segment F              | SD2                        | Upper Left Vert Bar    |
-| Segment G              | D9                         | Middle Horizontal Bar  |
+#### A. ESP8266 TO 74HC595 CONTROL BUS
 
-#### B. DYNAMIC DIGIT SELECTION CONTROL
-Connect the common pin of each display to these lines. This permits the ESP8266 
-to rapidly switch between the Left and Right screens to create an illusion 
-of both digits lit at once.
+ESP8266 PIN LABEL74HC595 IC TARGET PINSHIFT REGISTER ROLE
+**D2 (GPIO4)**
+Pin 14 (DS)Serial Data Input
+**D7 (GPIO13)**
+Pin 11 (SH_CP)Shift Register Clock Line
+**D1 (GPIO5)**
+Pin 12 (ST_CP)Storage Register Latch Line
 
-| MULTIPLEX TARGET SCREEN | ESP8266 PHYSICAL PIN LABEL | POWER GATE LOGIC      |
-| :---------------------- | :------------------------- | :--------------------- |
-| LEFT Display Common     | D7                         | Active LOW Ground Gate |
-| RIGHT Display Common    | D6                         | Active LOW Ground Gate |
+#### B. REGISTER OUTPUT PIN SEGMENT MAPPING
 
-*⚙️ TIME-MULTIPLEX NOTES:* During the selection menu loop, D6 and D7 handle screen 
-switching. Once you press select, the screen clears out and releases these lines 
-instantly so the high-resolution I2S microphone engine can safely hook into them.
+Connect the parallel output pins of the single 74HC595 to the tied segment lines: 
 
+74HC595 PIN LABELTARGET SHARED BUS SEGMENTARCHITECTURE ROLE
+**QA (Pin 15)**
+Segment ATop Horizontal Bar
+**QB (Pin 1)**
+Segment BUpper Right Vert Bar
+**QC (Pin 2)**
+Segment CLower Right Vert Bar
+**QD (Pin 3)**
+Segment DBottom Horizontal Bar
+**QE (Pin 4)**
+Segment ELower Left Vert Bar
+**QF (Pin 5)**
+Segment FUpper Left Vert Bar
+**QG (Pin 6)**
+Segment GMiddle Horizontal Bar
+**QH (Pin 7)**
+Decimal Point (DP)Decimal Point Indicator
+
+#### C. DYNAMIC DIGIT SELECTION CONTROL
+
+Connect the common pin (Cathode/Anode) of each display to these lines. The ESP8266
+will rapidly alternate between these pins to switch the displays on and off. 
+
+MULTIPLEX TARGET SCREENESP8266 PHYSICAL PIN LABELPOWER GATE LOGIC
+**LEFT Display Common**
+D0 (GPIO16)Active LOW/HIGH Ground Gate
+**RIGHT Display Common**
+TX (GPIO1)Active LOW/HIGH Ground Gate
 
 ### [SECTION 3] CONTROL INTERRUPT PUSH BUTTONS
+
 ================================================================================
-Wire one terminal of the push switch directly to the pin below. Tie the 
-opposite terminal directly to any common GND plane. Internal software 
-pull-up configuration handles noise filtration.
+Wire one terminal of the push switch directly to the pin below. Tie the
+opposite terminal directly to any common GND plane. Internal software
+pull-up configuration handles noise filtration. 
 
-| INTERFACE ACTION        | ESP8266 PHYSICAL PIN LABEL | EXPECTED STATE VALUE   |
-| :---------------------- | :------------------------- | :--------------------- |
-| BUTTON 1: Cycle Options | D3                         | LOW when held / pressed|
-| BUTTON 2: Lock / Select | D4                         | LOW when held / pressed|
+INTERFACE ACTIONESP8266 PHYSICAL PIN LABELEXPECTED STATE VALUE
+**BUTTON 1: Cycle Options**
+D3 (GPIO0)LOW when held / pressed
+**BUTTON 2: Lock / Select**
+D4 (GPIO2)LOW when held / pressed
 
+*💡 STRATEGY NOTE:* GPIO0 and GPIO2 act as standard boot configuration inputs.
+Using normal pull-up setups on these buttons guarantees the ESP8266 boots cleanly
+into normal program execution mode upon receiving power. 
 
 ### [SECTION 4] EMERGENCY ALERT ELEMENTS
+
 ================================================================================
-These pins drive warning outputs outward when the room decibel level crosses 
-the pre-configured threshold index 't' (set to 60dB).
+These pins drive warning outputs outward when the room decibel level crosses
+the pre-configured threshold index 't' (set to 60dB). 
 
-| PERIPHERAL WARNING UNIT | ESP8266 PHYSICAL PIN LABEL | ACTIVE DRIVING OUTPUT  |
-| :---------------------- | :------------------------- | :--------------------- |
-| Large Red Alert Lamp    | D1                         | HIGH (+3.3V) = ON      |
-| Acoustic Piezo Buzzer   | D2                         | HIGH (+3.3V) = ON      |
+PERIPHERAL WARNING UNITESP8266 PHYSICAL PIN LABELACTIVE DRIVING OUTPUT
+**Large Red Alert Lamp**
+RX (GPIO3)HIGH (+3.3V) = ON
+**Acoustic Piezo Buzzer**
+D9 (GPIO7 / SD2)*HIGH (+3.3V) = ON
 
---------------------------------------------------------------------------------
+### *⚠️ CAUTION:* Using RX/TX pins for system peripherals means serial debugging data
+should be disabled (Serial.end()) during active processing loops to prevent interference.
+
 EOF - END OF FILE
