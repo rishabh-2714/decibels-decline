@@ -1,4 +1,4 @@
-# ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️ UNTESTED. TIMELINE: 21<sup>st</sup> October, 2026. ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
+# ⚠️⚠️⚠️⚠️⚠️ UNTESTED. TIMELINE: 21<sup>st</sup> October, 2026. ⚠️⚠️⚠️⚠️⚠️
 # Decibels Decline
 
 A school tech expo project that we use to help teachers' nerves by monitoring noise levels and updating to a website with rewards to incentivise student quietness.
