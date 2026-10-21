@@ -121,6 +121,15 @@ def get_data():
             "error": "Invalid sensor data received"
         }), 502
 
+@app.route("/api/counter", methods=["GET"])
+def get_counter():
+    data = read_json()
+
+    return jsonify({
+        "update_count": data.get("update_count", 0),
+        "updated_at": data.get("updated_at")
+    })
+    
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
@@ -133,7 +142,12 @@ def internal_server_error(error):
     return jsonify({
         "error": "Internal server error"
     }), 500
-
+@app.errorhandler(404)
+def page_not_found(error):
+    return jsonify({
+        "error": "Page not found"
+    }), 404
+    
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
