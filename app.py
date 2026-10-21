@@ -88,7 +88,7 @@ def get_data():
         )
         response.raise_for_status()
 
-    esp_data = response.json()
+        esp_data = response.json()
 
         data = {
             "sensor_value": int(esp_data["sensor_value"]),
