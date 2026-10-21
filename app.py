@@ -1,8 +1,10 @@
+#Imports
 import os
 import requests
 import json
 from flask import Flask, render_template, jsonify
 from datetime import datetime
+
 # Define absolute paths for local environment
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 JSON_PATH = os.path.join(BASE_DIR, 'dynamic.json')
@@ -15,6 +17,7 @@ ESP32_URL = "http://192.168.4.1"
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
 
+#Checking for path
 def read_json():
     if not os.path.exists(JSON_PATH):
         return {
