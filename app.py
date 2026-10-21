@@ -111,9 +111,9 @@ def get_data():
         })
 
     except requests.RequestException as error:
-        app.logger.error("ESP32 connection error: %s", error)
+        app.logger.error("ESP8266 connection error: %s", error)
         return jsonify({
-            "error": "ESP32 is not reachable"
+            "error": "ESP8266 is not reachable"
         }), 503
 
     except (ValueError, KeyError, TypeError):
