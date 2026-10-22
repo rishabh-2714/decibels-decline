@@ -1,228 +1,234 @@
 #include <ESP8266WiFi.h>
-#include <I2S.h>
-#include <math.h> 
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
-// WiFi Configuration
+// Wi-Fi configuration
 const char* ssid = "name";
-const char* password = "bisa1234$"; 
+const char* password = "YOUR_WIFI_PASSWORD";
 
-// 74HC595 Shift Register Bus Pins
-const int DATA_PIN  = D2; // Pin 14 (DS)
-const int CLOCK_PIN = D7; // Pin 11 (SH_CP)
-const int LATCH_PIN = D1; // Pin 12 (ST_CP) 
+// OLED configuration
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+#define OLED_ADDRESS 0x3C
 
-// Digits/SSDs Control Pins (Common Cathode Ground Gates)
-const int DIGIT_1_PIN = D0; // Powers left display (GPIO16)
-const int DIGIT_2_PIN = TX; // Powers right display (GPIO1) 
+Adafruit_SSD1306 display(
+  SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET
+);
 
-// Control Interrupt Push Buttons
-const int BTN_NEXT_PIN  = D3; // Button 1: Cycles keys (GPIO0)
-const int BTN_SEL_PIN   = D4; // Button 2: Selects key (GPIO2) 
+// Pin configuration
+const int OLED_SDA_PIN = D2;
+const int OLED_SCL_PIN = D1;
+const int MIC_PIN = A0;
 
-// Emergency Alert Elements
-const int RED_LIGHT_PIN = RX; // Decibel trigger light (GPIO3)
-// Note: Buzzer is now controlled via QH (MSB) on the 74HC595 shift register
-bool buzzerActive = false;    // Global flag for QH buzzer state
+const int BTN_NEXT_PIN = D3;
+const int BTN_SEL_PIN = D4;
 
-// Threshold configuration (in Decibels)
-const int t = 75; 
+const int RED_LIGHT_PIN = D5;
+const int BUZZER_PIN = D6;
 
-// Array containing your exact JSON keys
+// Inverted raw ADC threshold: 0–1023.
+const int SOUND_THRESHOLD = 750;
+
+const unsigned long ALERT_DURATION = 2000;
+const unsigned long DISPLAY_INTERVAL = 100;
+const unsigned long DEBOUNCE_TIME = 30;
+
 const int TOTAL_KEYS = 18;
 const char* jsonKeys[TOTAL_KEYS] = {
-"6a", "6b", "6A", "6B", "6C", "7A", "7B", "7y", "7r",
-"8B", "8A", "8g", "8s", "8h", "9", "10", "11", "12"
+  "6a", "6b", "6A", "6B", "6C",
+  "7A", "7B", "7y", "7r",
+  "8B", "8A", "8g", "8s", "8h",
+  "9", "10", "11", "12"
 };
+
 int currentKeyIndex = 0;
-bool selectionFinalized = false; 
+bool selectionFinalized = false;
 
-// Audio Sample Constraints
-const int SAMPLE_WINDOW = 50;
-const float REFERENCE_AMPLITUDE = 1.0; 
+bool alertActive = false;
+unsigned long lastLoudTime = 0;
+unsigned long lastDisplayTime = 0;
 
-// Segment Lookup Array: Mapping ASCII characters to custom segment bits
-// Segment order matching QA->QH map: 0b[DP][G][F][E][D][C][B][A] (1 = Segment ON)
-uint8_t getSegmentByte(char c) {
-switch(c) {
-case '0': return 0b00111111;
-case '1': return 0b00000110;
-case '2': return 0b01011011;
-case '3': return 0b01001111;
-case '4': return 0b01100110;
-case '5': return 0b01101101;
-case '6': return 0b01111101;
-case '7': return 0b00000111;
-case '8': return 0b01111111;
-case '9': return 0b01101111;
-case 'A': return 0b01110111;
-case 'B': return 0b00110111;
-case 'C': return 0b00111001;
-case 'a': return 0b01011111;
-case 'b': return 0b01111100;
-case 'g': return 0b01101111;
-case 'h': return 0b01110100;
-case 'r': return 0b01010000;
-case 's': return 0b01101101;
-case 'y': return 0b01101110;
-default:  return 0b00000000; // Blank Space
-}
-} 
+// Variables for averaging every 10 readings
+int sampleCount = 0;
+long sampleSum = 0;
 
-// Low-level function to stream out data into the 74HC595 shift register
-void writeSegments(uint8_t mask) {
-digitalWrite(LATCH_PIN, LOW);
+// Debounced button handling
+struct Button {
+  int pin;
+  bool lastReading;
+  bool stableState;
+  unsigned long lastChange;
+};
 
-// Automatically inject buzzer state into QH (MSB - bit 7)
-if (buzzerActive) {
-    mask |= 0b10000000; // Set QH HIGH
-} else {
-    mask &= 0b01111111; // Set QH LOW
+Button nextButton = {BTN_NEXT_PIN, HIGH, HIGH, 0};
+Button selectButton = {BTN_SEL_PIN, HIGH, HIGH, 0};
+
+bool wasPressed(Button& button) {
+  bool reading = digitalRead(button.pin);
+  unsigned long now = millis();
+
+  if (reading != button.lastReading) {
+    button.lastChange = now;
+    button.lastReading = reading;
+  }
+
+  if (now - button.lastChange >= DEBOUNCE_TIME &&
+      reading != button.stableState) {
+    button.stableState = reading;
+    return button.stableState == LOW;
+  }
+
+  return false;
 }
 
-shiftOut(DATA_PIN, CLOCK_PIN, MSBFIRST, mask);
-digitalWrite(LATCH_PIN, HIGH);
-} 
+void showSelection() {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
 
-// Multiplexes both displays back-and-forth once
-void updateDisplay() {
-const char* key = jsonKeys[currentKeyIndex];
-char leftChar, rightChar; 
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.print("Select classroom");
 
-// Handle single digit alignment (like "9" -> " 9")
-if (key == '\0') {
-leftChar = ' ';
-rightChar = key;
-} else {
-leftChar = key;
-rightChar = key;
-} 
+  display.setTextSize(3);
+  display.setCursor(40, 18);
+  display.print(jsonKeys[currentKeyIndex]);
 
-// Flash Left Display
-writeSegments(getSegmentByte(leftChar));
-digitalWrite(DIGIT_1_PIN, LOW);  // Turn on Left SSD
-delay(4);                        // Small window for persistence of vision
-digitalWrite(DIGIT_1_PIN, HIGH); // Turn off Left SSD 
+  display.setTextSize(1);
+  display.setCursor(0, 48);
+  display.print("D3: Next");
 
-// Flash Right Display
-writeSegments(getSegmentByte(rightChar));
-digitalWrite(DIGIT_2_PIN, LOW);  // Turn on Right SSD
-delay(4);                        // Small window for persistence of vision
-digitalWrite(DIGIT_2_PIN, HIGH); // Turn off Right SSD
-} 
+  display.setCursor(0, 56);
+  display.print("D4: Select");
+
+  display.display();
+}
+
+void showMicrophone(int micValue) {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.print("Class: ");
+  display.print(jsonKeys[currentKeyIndex]);
+
+  display.setCursor(0, 12);
+  display.print("Mic inverted raw");
+
+  display.setTextSize(2);
+  display.setCursor(0, 26);
+  display.print("Val:");
+  display.print(micValue);
+
+  display.setTextSize(1);
+  display.setCursor(0, 48);
+  display.print("Threshold: ");
+  display.print(SOUND_THRESHOLD);
+
+  display.setCursor(0, 56);
+  display.print(alertActive ? "ALERT" : "Monitoring");
+
+  display.display();
+}
 
 void setup() {
-// Serial initialization (Used during boot config mode)
-Serial.begin(115200); 
+  Serial.begin(115200);
 
-// Configure shift register logic pins
-pinMode(DATA_PIN, OUTPUT);
-pinMode(CLOCK_PIN, OUTPUT);
-pinMode(LATCH_PIN, OUTPUT); 
+  pinMode(MIC_PIN, INPUT);
 
-// Set up digit switching control lines
-pinMode(DIGIT_1_PIN, OUTPUT);
-pinMode(DIGIT_2_PIN, OUTPUT);
-digitalWrite(DIGIT_1_PIN, HIGH); // Off state (Common Cathode)
-digitalWrite(DIGIT_2_PIN, HIGH); // Off state (Common Cathode) 
+  pinMode(BTN_NEXT_PIN, INPUT_PULLUP);
+  pinMode(BTN_SEL_PIN, INPUT_PULLUP);
 
-// Set up buttons with internal pull-ups
-pinMode(BTN_NEXT_PIN, INPUT_PULLUP);
-pinMode(BTN_SEL_PIN, INPUT_PULLUP); 
+  pinMode(RED_LIGHT_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
 
-// Set up sound action hardware
-pinMode(RED_LIGHT_PIN, OUTPUT);
-digitalWrite(RED_LIGHT_PIN, LOW);
-buzzerActive = false; 
+  digitalWrite(RED_LIGHT_PIN, LOW);
+  digitalWrite(BUZZER_PIN, LOW);
 
-// Connect to the WiFi network
-WiFi.begin(ssid, password);
-while (WiFi.status() != WL_CONNECTED) {
-updateDisplay(); // Keep driving display loop while waiting for WiFi
-} 
+  Wire.begin(OLED_SDA_PIN, OLED_SCL_PIN);
 
-// INTERLOCK CHOICE LOOP: Holds device until selection is locked in
-while (!selectionFinalized) {
-updateDisplay(); // Keeps displaying the active key choice continuously 
+  if (!display.begin(
+        SSD1306_SWITCHCAPVCC,
+        OLED_ADDRESS,
+        true,
+        false)) {
+    Serial.println("OLED initialization failed");
 
-// Read Next Button
-if (digitalRead(BTN_NEXT_PIN) == LOW) {
-currentKeyIndex = (currentKeyIndex + 1) % TOTAL_KEYS;
-while(digitalRead(BTN_NEXT_PIN) == LOW) { updateDisplay(); }
+    while (true) {
+      delay(100);
+    }
+  }
+
+  display.setTextWrap(false);
+  showSelection();
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
 }
-
-// Read Select Button
-if (digitalRead(BTN_SEL_PIN) == LOW) {
-selectionFinalized = true;
-
-// Output the chosen key down the line directly to Python app.py
-Serial.println(jsonKeys[currentKeyIndex]);
-
-writeSegments(0); // Clear shift register outputs completely
-while(digitalRead(BTN_SEL_PIN) == LOW) { yield(); }
-}
-yield();
-} 
-
-// Shut down standard serial lines to clear pins TX/RX for active displays and lights
-Serial.end(); 
-
-// --- START AUDIO SENSING SUB-ROUTINE ---
-if (!I2S.begin(I2S_PHILIPS_MODE, 16000, 16)) {
-while (1);
-}
-} 
 
 void loop() {
-unsigned long startMillis = millis();
-long long sumSquares = 0;
-long sampleCount = 0; 
+  bool nextPressed = wasPressed(nextButton);
+  bool selectPressed = wasPressed(selectButton);
 
-// Track sound input across the sample window frame
-while (millis() - startMillis < SAMPLE_WINDOW) {
-if (I2S.available()) {
-int16_t sample = I2S.readSample();
-sumSquares += (long long)sample * sample;
-sampleCount++;
-} 
+  // Select classroom before starting microphone monitoring.
+  if (!selectionFinalized) {
+    if (nextPressed) {
+      currentKeyIndex = (currentKeyIndex + 1) % TOTAL_KEYS;
+      showSelection();
+    }
 
-// Continuously cycle displays inside sample window to prevent flickering
-updateDisplay();
-} 
+    if (selectPressed) {
+      selectionFinalized = true;
+      Serial.println("Selected room: " + String(jsonKeys[currentKeyIndex]));
+      lastDisplayTime = millis() - DISPLAY_INTERVAL;
+    }
 
-int vol = 0;
-if (sampleCount > 0) {
-double meanSquare = (double)sumSquares / sampleCount;
-double rms = sqrt(meanSquare);
-if (rms < 1) rms = 1; 
+    delay(1);
+    return;
+  }
 
-vol = (int)(20.0 * log10(rms / REFERENCE_AMPLITUDE));
-} 
+  unsigned long now = millis();
 
-// Trigger safety warnings if decibel threshold is breached
-if (vol > t) {
-digitalWrite(RED_LIGHT_PIN, HIGH); 
+  if (now - lastDisplayTime >= DISPLAY_INTERVAL) {
+    lastDisplayTime = now;
 
-// Maintain alert state while keeping screens visible
-unsigned long alertStart = millis();
-while (millis() - alertStart < 2000) {
-if (vol > 90) {
-// Software PWM toggle for lower intensity buzzer tone via QH
-buzzerActive = (millis() / 5) % 2;
-} else {
-// Standard rule: full power output beep via QH
-buzzerActive = true;
-}
-updateDisplay();
-}
+    // Invert reading: 0 becomes 1023, 1023 becomes 0.
+    int micValue = 1023 - analogRead(MIC_PIN);
 
-// Clear warning outputs completely
-digitalWrite(RED_LIGHT_PIN, LOW);
-buzzerActive = false;
-} 
+    // Accumulate for mean calculation
+    sampleSum += micValue;
+    sampleCount++;
 
-// Short recovery delay pacing loop
-unsigned long recoveryStart = millis();
-while (millis() - recoveryStart < 100) {
-updateDisplay();
-}
+    // Check threshold immediately for responsive alerts
+    if (micValue > SOUND_THRESHOLD) {
+      alertActive = true;
+      lastLoudTime = now;
+    }
+
+    if (alertActive &&
+        now - lastLoudTime >= ALERT_DURATION) {
+      alertActive = false;
+    }
+
+    digitalWrite(RED_LIGHT_PIN, alertActive ? HIGH : LOW);
+    digitalWrite(BUZZER_PIN, alertActive ? HIGH : LOW);
+
+    // Send only the mean of every 10 readings to Serial
+    if (sampleCount >= 10) {
+      int meanVal = sampleSum / 10;
+
+      // Print just the mean number
+      Serial.println(meanVal);
+
+      // Reset accumulators
+      sampleSum = 0;
+      sampleCount = 0;
+    }
+
+    showMicrophone(micValue);
+  }
+
+  delay(1);
 }
