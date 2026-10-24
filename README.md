@@ -1,3 +1,4 @@
+<h1>PS: DO NOT USE THIS UNDER A CAPTIVE WI-FI</h1>
 <h1 style="text-align: center;">⚠️⚠️⚠️⚠️ UNTESTED. TIMELINE: 21<sup>st</sup> October, 2026. ⚠️⚠️⚠️⚠️</h1>
 
 # Decibels Decline
